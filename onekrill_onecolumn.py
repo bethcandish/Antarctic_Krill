@@ -43,7 +43,7 @@ def calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time):
     
     return time_produce_one_mp_fp #fp/hour
 
-def calc_initial_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity as in komar et al 1981
+def calc_initial_sinking_velocity_ko(mu, rho, rho_s, L, D): #calculating sinking velcoity as in komar et al 1981
     
     #all the units need to be SI
     
@@ -55,17 +55,17 @@ def calc_initial_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking ve
     
     return initial_sinking_velocity
 
-# def calc_initial_sinking_velocity(L, D, rho_s): # Atkinson et al 2012
+def calc_initial_sinking_velocity_at(L, D, rho_s): # Atkinson et al 2012
         
-#     #[L] = um
-#     #[D] = um
-#     #[rho_s] = kg/m^3
+    #[L] = um
+    #[D] = um
+    #[rho_s] = kg/m^3
     
-#     log_sinking_velocity = 1.96 * np.log10(D) + 0.539 * np.log10(L) + 0.00405 * rho_s - 8.33
+    log_sinking_velocity = 1.96 * np.log10(D) + 0.539 * np.log10(L) + 0.00405 * rho_s - 8.33
     
-#     initial_sinking_velocity = 10 ** log_sinking_velocity #m/d
+    initial_sinking_velocity = 10 ** log_sinking_velocity #m/d
     
-#     return initial_sinking_velocity
+    return initial_sinking_velocity
 
 def calc_sinking_velocity(time_since_release, initial_sinking_velocity, b):
     

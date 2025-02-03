@@ -5,7 +5,8 @@ from onekrill_onecolumn import (
     calc_krill_mp_consumption,
     calc_mp_fp_production_rate,
     calc_sinking_velocity,
-    calc_initial_sinking_velocity,
+    calc_initial_sinking_velocity_ko,
+    calc_initial_sinking_velocity_at
 )
 
 # Parameters
@@ -30,7 +31,7 @@ gut_passage_time = 4  # Gut passage time in hours
 clearance_rate = calc_clearance_rate(krill_length_mm)
 krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
 time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time)
-initial_sinking_velocity = calc_initial_sinking_velocity(mu, rho, rho_s, L, D)
+initial_sinking_velocity = calc_initial_sinking_velocity_ko(mu, rho, rho_s, L, D)
 
 # Generate fecal pellet release times
 fp_release_times = np.arange(0, max(time), gut_passage_time)
