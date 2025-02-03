@@ -13,12 +13,16 @@ krill_length_mm = 50  # mm
 mp_conc = 500  # particles/m3
 depth = 650  # m
 time = np.linspace(0, 200, 500)  # Simulation time in hours
-b = 0.01  # Attenuation of velocity with depth
+b = 0.05  # Attenuation of velocity with depth
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
 rho_s = 1121  # Density of krill FP (Atkinson et al 2012)
 L = 2928 * 10 ** (-6)  # Length of FP (Atkinson et al 2012)
 D = 183 * 10 ** (-6)  # Width/diameter of FP (Atkinson et al 2012)
+
+# L = 2928
+# D = 183
+# rho_s = 1121 # all Atkinson et al 2012 values
 
 gut_passage_time = 4  # Gut passage time in hours
 
