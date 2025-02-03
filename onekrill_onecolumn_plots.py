@@ -87,6 +87,3 @@ ax2.grid()
 
 plt.tight_layout()
 plt.show()
-
-print(mp_accumulation_diff[-1])
-print(mp_accumulation_at[-1])

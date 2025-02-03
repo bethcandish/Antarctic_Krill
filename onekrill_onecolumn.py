@@ -34,7 +34,6 @@ def calc_krill_mp_consumption(clearance_rate, mp_conc):
 
 def calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time):
     
-    
     one_mp_consumption_time = 1/krill_mp_consumption #hours
     
     time_produce_one_mp_fp = one_mp_consumption_time + gut_passage_time #hour
@@ -74,7 +73,11 @@ def calc_sinking_velocity(time_since_release, initial_sinking_velocity, b):
     
     return sinking_velocity
 
-
+def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
+    
+    flux = flux_50 *(z/50)**(-b)
+    
+    return flux
 
 
     
