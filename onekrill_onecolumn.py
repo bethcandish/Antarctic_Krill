@@ -38,7 +38,7 @@ def calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time):
     
     time_produce_one_mp_fp = one_mp_consumption_time + gut_passage_time #hour
     
-    #mp_fp_production_rate = 1 / time_produce_one_mp_fp
+    #mp_fp_production_rate = 1 / time_produce_one_mp_fp 
     
     return time_produce_one_mp_fp #fp/hour
 
@@ -66,6 +66,23 @@ def calc_initial_sinking_velocity_at(L, D, rho_s): # Atkinson et al 2012
     
     return initial_sinking_velocity
 
+#from atkinson et al 2012 but the R2 is 23??
+
+def calc_fp_width_um(krill_length_mm): 
+    
+    a = 0.00036
+    b = 3.277
+    
+    dry_mass_mg = a * (krill_length_mm**b)
+    dry_mass_ug = dry_mass_mg/1000
+    
+    fp_width_um = 0.165 * dry_mass_ug +153
+    
+    return fp_width_um
+    
+    
+
+##This is not based on anythong at all##
 def calc_sinking_velocity(time_since_release, initial_sinking_velocity, b):
     
     #Calculate varying sinking velocity with depth
@@ -73,6 +90,7 @@ def calc_sinking_velocity(time_since_release, initial_sinking_velocity, b):
     
     return sinking_velocity
 
+##Martin type attenuation curve
 def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
     
     flux = flux_50 *(z/50)**(-b)
@@ -80,7 +98,7 @@ def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
     return flux
 
 
-    
+  
                                                    
                                                    
                                                    

@@ -58,7 +58,7 @@ plt.plot(flux, (z +50), label="FP Mass Flux")
 plt.xlabel("Fecal Pellet Mass Flux (kg/day)")
 plt.ylabel("Depth (m)")
 plt.title("Fecal Pellet Mass Flux with Depth")
-plt.gca().invert_yaxis()  # Invert y-axis so depth increases downward
+plt.gca().invert_ya$xis()  # Invert y-axis so depth increases downward
 plt.legend()
 plt.grid()
 plt.show()

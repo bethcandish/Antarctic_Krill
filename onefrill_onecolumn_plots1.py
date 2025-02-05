@@ -6,7 +6,8 @@ from onekrill_onecolumn import (
     calc_mp_fp_production_rate,
     calc_sinking_velocity,
     calc_initial_sinking_velocity_ko,
-    calc_initial_sinking_velocity_at
+    calc_initial_sinking_velocity_at,
+    calc_fp_width_um
 )
 
 # Parameters
@@ -14,12 +15,12 @@ krill_length_mm = 50  # mm
 mp_conc = 500  # particles/m3
 depth = 650  # m
 time = np.linspace(0, 200, 500)  # Simulation time in hours
-b = 0.05  # Attenuation of velocity with depth
+b = 0  # Attenuation of velocity with depth
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
 rho_s = 1121  # Density of krill FP (Atkinson et al 2012)
-L = 2928 * 10 ** (-6)  # Length of FP (Atkinson et al 2012)
-D = 183 * 10 ** (-6)  # Width/diameter of FP (Atkinson et al 2012)
+L = 2928 * 10 ** (-6)  # Length of FP (Atkinson et al 2012) # units m
+D = calc_fp_width_um(krill_length_mm) * 10 ** (-6) # Width/diameter of FP (Atkinson et al 2012)
 
 # L = 2928
 # D = 183
