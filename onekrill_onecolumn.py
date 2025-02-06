@@ -42,29 +42,29 @@ def calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time):
     
     return time_produce_one_mp_fp #fp/hour
 
-def calc_initial_sinking_velocity_ko(mu, rho, rho_s, L, D): #calculating sinking velcoity as in komar et al 1981
+def calc_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity as in komar et al 1981
     
     #all the units need to be SI
     
     g= 9.81
 
-    initial_sinking_velocity_s = 0.079 * (1/mu)*(rho_s - rho) * g * L**2 *(L/D)**(-1.664)
+    sinking_velocity_s = 0.079 * (1/mu)*(rho_s - rho) * g * L**2 *(L/D)**(-1.664)
     #converting the sinking velocity to m/d 
-    initial_sinking_velocity = initial_sinking_velocity_s * (60*60*24)
+    sinking_velocity = sinking_velocity_s * (60*60*24)
     
-    return initial_sinking_velocity
+    return sinking_velocity
 
-def calc_initial_sinking_velocity_at(L, D, rho_s): # Atkinson et al 2012
+# def calc_initial_sinking_velocity_at(L, D, rho_s): # Atkinson et al 2012
         
-    #[L] = um
-    #[D] = um
-    #[rho_s] = kg/m^3
+#     #[L] = um
+#     #[D] = um
+#     #[rho_s] = kg/m^3
     
-    log_sinking_velocity = 1.96 * np.log10(D) + 0.539 * np.log10(L) + 0.00405 * rho_s - 8.33
+#     log_sinking_velocity = 1.96 * np.log10(D) + 0.539 * np.log10(L) + 0.00405 * rho_s - 8.33
     
-    initial_sinking_velocity = 10 ** log_sinking_velocity #m/d
+#     initial_sinking_velocity = 10 ** log_sinking_velocity #m/d
     
-    return initial_sinking_velocity
+#     return initial_sinking_velocity
 
 #from atkinson et al 2012 but the R2 is 23??
 
@@ -83,37 +83,54 @@ def calc_fp_width_um(krill_length_mm):
     
 
 ##This is not based on anythong at all##
-def calc_sinking_velocity(time_since_release, initial_sinking_velocity, b):
+def calc_length_decrease( L_init, b, z):
     
-    #Calculate varying sinking velocity with depth
-    sinking_velocity = initial_sinking_velocity * np.exp(-b * time_since_release)
+    #calculate the 
+    L = L_init * (z/50) ** b   
     
-    return sinking_velocity
+    return L
 
-##Martin type attenuation curve
-def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
+# ##Martin type attenuation curve
+# def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
     
-    flux = flux_50 *(z/50)**(-b)
+#     flux = flux_50 *(z/50)**(-b)
     
-    return flux
+#     return flux
+
+##HOW TO CREATE THE DISTRIBUTION FROM THE DATA IN THE ATKINSON ET AL 2012## 
+
+# import numpy as np
+# import scipy.stats as stats
+
+# def generate_random_from_distribution(mean, median, min_val, max_val, size=1):
+#     # Estimate standard deviation (assume mean-median difference as skew indicator)
+#     std_dev = (max_val - min_val) / 6  # Rough estimate assuming normal-like distribution
+
+#     # Define bounds in standard normal form
+#     lower_bound = (min_val - mean) / std_dev
+#     upper_bound = (max_val - mean) / std_dev
+
+#     # Create truncated normal distribution
+#     distribution = stats.truncnorm(lower_bound, upper_bound, loc=mean, scale=std_dev)
+
+#     # Sample from the distribution
+#     random_values = distribution.rvs(size=size)
+    
+#     return random_values if size > 1 else random_values[0]
+
+# # Example parameters
+# mean = 50
+# median = 45
+# min_val = 30
+# max_val = 80
+
+# Generate a single random number
+random_number = generate_random_from_distribution(mean, median, min_val, max_val)
+print("Random Number:", random_number)
+
 
 
   
                                                    
                                                    
-                                                   
         
-
-
-
-
-
-
-
-
-    
-    
-
-
-
-# print(f"Clearance Rate: {clearance_rate} ml/hour"):
