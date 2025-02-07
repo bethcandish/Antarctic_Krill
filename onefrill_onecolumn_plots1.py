@@ -6,7 +6,8 @@ from onekrill_onecolumn import (
     calc_mp_fp_production_rate,
     calc_sinking_velocity,
     calc_fp_width_um,
-    calc_length_decrease
+    calc_length_decrease,
+    generate_random
 )
 import scipy.stats as stats
 
@@ -18,16 +19,13 @@ time = np.linspace(0, 200, 500)  # Simulation time in hours
 b = -0.3  # Attenuation coefficient
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
-rho_s = 1121  # Density of krill FP (Atkinson et al 2012)
-L_init = 2928 * 10 ** (-6)  # Initial FP length (m)
-D = calc_fp_width_um(krill_length_mm) * 10 ** (-6)  # Width/diameter of FP (m)
+rho_s = generate_random(1121,1116, 1038,1391)  # Density of krill FP (Atkinson et al 2012)
 gut_passage_time = 2  # Gut passage time in hours
 
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
 krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
 time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time)
-initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
 
 # Fecal pellet release times
 fp_release_times = np.arange(0, max(time), gut_passage_time)
@@ -40,6 +38,14 @@ fig, ax = plt.subplots(figsize=(12, 10))
 for release_time in fp_release_times:
     pellet_time = time[time >= release_time]  # Time after release
     time_since_release = pellet_time - release_time  # Time elapsed since egestion
+
+    # **Generate unique length, width and density for each fecal pellet**
+    L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)  # Initial FP length (m)
+    D = generate_random(183, 178, 80, 600) * 10 ** (-6)  # Width/diameter of FP (m)
+    rho_s = generate_random(1121,1116, 1038,1391)  # Density of krill FP (Atkinson et al 2012)
+
+    # Compute initial sinking velocity for this pellet
+    initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
 
     # Initialize values
     current_depth = 100
@@ -66,7 +72,7 @@ for release_time in fp_release_times:
     # Stop at max depth
     sinking_depths = np.clip(sinking_depths, 0, depth_limit)
 
-    # Determine if this FP is an MP FP
+    # Determine if this FP contains microplastics
     contains_mp = np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2))
     color = "red" if contains_mp else "blue"
 
@@ -76,8 +82,15 @@ for release_time in fp_release_times:
 ax.invert_yaxis()  # Invert y-axis to show depth increasing downward
 ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Depth (m)")
-ax.set_title(f"Sinking Fecal Pellets with Dynamic Length & Velocity")
+ax.set_title(f"Sinking Fecal Pellets with Randomized Length & Width")
 ax.grid()
+
+# Add legend
+ax.plot([], [], color='red', label='Contains Microplastics')
+ax.plot([], [], color='blue', label='No Microplastics')
+ax.legend()
 
 # Show plot
 plt.show()
+
+#%%

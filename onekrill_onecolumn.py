@@ -9,6 +9,7 @@ Created on Wed Jan 29 17:06:53 2025
 
 import numpy as np 
 import matplotlib.pyplot as plt
+import scipy.stats as stats
     
 def calc_clearance_rate(krill_length_mm):
     
@@ -86,7 +87,7 @@ def calc_fp_width_um(krill_length_mm):
 def calc_length_decrease( L_init, b, z):
     
     #calculate the 
-    L = L_init * (z/50) ** b   
+    L = L_init * (z/100) ** b   
     
     return L
 
@@ -99,24 +100,22 @@ def calc_length_decrease( L_init, b, z):
 
 ##HOW TO CREATE THE DISTRIBUTION FROM THE DATA IN THE ATKINSON ET AL 2012## 
 
-# import numpy as np
-# import scipy.stats as stats
 
-# def generate_random_from_distribution(mean, median, min_val, max_val, size=1):
-#     # Estimate standard deviation (assume mean-median difference as skew indicator)
-#     std_dev = (max_val - min_val) / 6  # Rough estimate assuming normal-like distribution
+def generate_random(mean, median, min_val, max_val, size=1):
+    # Estimate standard deviation (assume mean-median difference as skew indicator)
+    std_dev = (max_val - min_val) / 6  # Rough estimate assuming normal-like distribution
 
-#     # Define bounds in standard normal form
-#     lower_bound = (min_val - mean) / std_dev
-#     upper_bound = (max_val - mean) / std_dev
+    # Define bounds in standard normal form
+    lower_bound = (min_val - mean) / std_dev
+    upper_bound = (max_val - mean) / std_dev
 
-#     # Create truncated normal distribution
-#     distribution = stats.truncnorm(lower_bound, upper_bound, loc=mean, scale=std_dev)
+    # Create truncated normal distribution
+    distribution = stats.truncnorm(lower_bound, upper_bound, loc=mean, scale=std_dev)
 
-#     # Sample from the distribution
-#     random_values = distribution.rvs(size=size)
+    # Sample from the distribution
+    random_values = distribution.rvs(size=size)
     
-#     return random_values if size > 1 else random_values[0]
+    return random_values if size > 1 else random_values[0]
 
 # # Example parameters
 # mean = 50
@@ -125,8 +124,8 @@ def calc_length_decrease( L_init, b, z):
 # max_val = 80
 
 # Generate a single random number
-random_number = generate_random_from_distribution(mean, median, min_val, max_val)
-print("Random Number:", random_number)
+# random_number = generate_random_from_distribution(mean, median, min_val, max_val)
+# print("Random Number:", random_number)
 
 
 
