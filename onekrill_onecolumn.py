@@ -81,7 +81,6 @@ def calc_fp_width_um(krill_length_mm):
     
     return fp_width_um
     
-    
 
 ##This is not based on anythong at all##
 def calc_length_decrease( L_init, b, z):
@@ -91,15 +90,8 @@ def calc_length_decrease( L_init, b, z):
     
     return L
 
-# ##Martin type attenuation curve
-# def calc_flux(flux_50, z, b): #assuming the mixed layer is 50m??
-    
-#     flux = flux_50 *(z/50)**(-b)
-    
-#     return flux
 
-##HOW TO CREATE THE DISTRIBUTION FROM THE DATA IN THE ATKINSON ET AL 2012## 
-
+##DISTRIBUTION FROM THE DATA IN THE ATKINSON ET AL 2012## 
 
 def generate_random(mean, median, min_val, max_val, size=1):
     # Estimate standard deviation (assume mean-median difference as skew indicator)
@@ -117,15 +109,28 @@ def generate_random(mean, median, min_val, max_val, size=1):
     
     return random_values if size > 1 else random_values[0]
 
-# # Example parameters
-# mean = 50
-# median = 45
-# min_val = 30
-# max_val = 80
+#want to calculate the density based on the type of food that the krill is consuming
+#def calc_density(food):
+    
 
-# Generate a single random number
-# random_number = generate_random_from_distribution(mean, median, min_val, max_val)
-# print("Random Number:", random_number)
+#Boundary curve using Wu et al 2024
+def bounday_curve(L): #units um!!
+    
+    if L >= 900:
+        MP_size_lim = -0.0002 * L **2 + 0.36 * L
+        
+    else:
+        MP_size_lim = 162 
+        
+    return MP_size_lim
+
+
+#def boudary_curve ()
+    
+
+    
+
+
 
 
 
