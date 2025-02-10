@@ -237,7 +237,7 @@ mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
 gut_passage_time = 2  # Gut passage time in hours
 mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
-mp_conc = 2000  # Microplastic concentration (particles/m³)
+mp_conc = 500  # Microplastic concentration (particles/m³)
 
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
@@ -372,4 +372,149 @@ ax.legend()
 # Show plot
 plt.show()
 
+#%%
 
+import numpy as np
+import matplotlib.pyplot as plt
+from onekrill_onecolumn import (
+    calc_clearance_rate,
+    calc_krill_mp_consumption,
+    calc_mp_fp_production_rate,
+    calc_sinking_velocity,
+    calc_fp_width_um,
+    calc_length_decrease,
+    generate_random
+)
+
+# Parameters
+krill_length_mm = 50  # mm
+depth_limit = 600  # m
+time = np.linspace(0, 10000, 20000)  # Simulation time in hours
+b = -0.3  # Attenuation coefficient
+mu = 0.001  # Viscosity of water
+rho = 1025  # Density of water
+gut_passage_time = 2  # Gut passage time in hours
+mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
+mp_conc = 500  # Microplastic concentration (particles/m³)
+
+# Compute ingestion and egestion rates
+clearance_rate = calc_clearance_rate(krill_length_mm)
+krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
+time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time)
+
+# Fecal pellet release times
+fp_release_times = np.arange(0, max(time), gut_passage_time)
+mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_one_mp_fp)
+
+# Initialize arrays to store microplastic accumulation at max depth
+mp_accumulation_at_2000m_break = np.zeros_like(time)
+mp_accumulation_at_2000m = np.zeros_like(time)
+pellets_reaching_2000m_break = 0
+pellets_reaching_2000m = 0
+
+# Track when MP reaches 2000m
+def find_nearest_index(array, value):
+    return (np.abs(array - value)).argmin()
+
+# Simulate sinking for each fecal pellet with breakage
+for release_time in fp_release_times:
+    pellet_time = time[time >= release_time]  # Time after release
+    time_since_release = pellet_time - release_time  # Time elapsed since egestion
+
+    # Generate unique properties for each fecal pellet
+    L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)  # Initial FP length (m)
+    D = generate_random(183, 178, 80, 600) * 10 ** (-6)  # Width/diameter of FP (m)
+    rho_s = generate_random(1121, 1116, 1038, 1391)  # Density of krill FP
+
+    # Compute initial sinking velocity
+    initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
+    
+    # Initialize values
+    current_depth = 100
+    L = L_init
+    ws = initial_sinking_velocity
+    dt = (time[1] - time[0])  # Time step in hours
+    reached_2000m = False
+    time_at_2000m = None
+    
+    for t in time_since_release:
+        if current_depth >= depth_limit:
+            reached_2000m = True
+            time_at_2000m = release_time + t
+            pellets_reaching_2000m_break += 1
+            break
+        
+        # Update length based on depth
+        L = calc_length_decrease(L_init, b, current_depth)
+        
+        # Stop sinking if 40% of mass is lost
+        if L <= 0.6 * L_init:
+            reached_2000m = False
+            break
+        
+        # Recalculate sinking velocity
+        ws = calc_sinking_velocity(mu, rho, rho_s, L, D)
+        ws_per_hour = ws / 24  # Convert m/day to m/hour
+
+        # Update depth
+        current_depth += ws_per_hour * dt
+    
+    if reached_2000m and time_at_2000m is not None:
+        contains_mp = np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2))
+        if contains_mp:
+            index = find_nearest_index(time, time_at_2000m)
+            mp_accumulation_at_2000m_break[index] += mp_conc
+
+# Convert to cumulative sum
+mp_accumulation_at_2000m_break = np.cumsum(mp_accumulation_at_2000m_break)
+
+# Simulate sinking for each fecal pellet without breakage
+for release_time in fp_release_times:
+    pellet_time = time[time >= release_time]
+    time_since_release = pellet_time - release_time
+
+    L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)
+    D = generate_random(183, 178, 80, 600) * 10 ** (-6)
+    rho_s = generate_random(1121, 1116, 1038, 1391)
+
+    initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
+    
+    current_depth = 100
+    ws = initial_sinking_velocity
+    dt = (time[1] - time[0])
+    reached_2000m = False
+    time_at_2000m = None
+    
+    for t in time_since_release:
+        if current_depth >= depth_limit:
+            reached_2000m = True
+            time_at_2000m = release_time + t
+            pellets_reaching_2000m += 1
+            break
+        
+        ws = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
+        ws_per_hour = ws / 24
+        current_depth += ws_per_hour * dt
+    
+    if reached_2000m and time_at_2000m is not None:
+        contains_mp = np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2))
+        if contains_mp:
+            index = find_nearest_index(time, time_at_2000m)
+            mp_accumulation_at_2000m[index] += mp_conc
+
+mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
+
+# Plot results
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.plot(time, mp_accumulation_at_2000m_break, label="MP Concentration at 2000m with breakage", color='red')
+ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m without breakage", color='blue')
+ax.set_xlabel("Time (hours)")
+ax.set_ylabel("Microplastics Accumulated at 600m (particles/m³)")
+ax.set_title("Accumulation of Microplastics at 600m Over Time")
+ax.grid()
+ax.legend()
+plt.show()
+
+print(f"Total pellets released: {len(fp_release_times)}")
+print(f"Pellets reaching 2000m with breakage: {pellets_reaching_2000m_break}")
+print(f"Pellets reaching 2000m without breakage: {pellets_reaching_2000m}")
