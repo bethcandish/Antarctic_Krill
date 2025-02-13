@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
     
-def calc_clearance_rate(krill_length_mm):
+def calc_clearance_rate(krill_length_mm): #Atkinsons but not 2012 one 
     
     a = 0.00036
     b = 3.277
@@ -109,23 +109,50 @@ def generate_random(mean, median, min_val, max_val, size=1):
     
     return random_values if size > 1 else random_values[0]
 
+def swdens(TempC, Sal):
+    """
+    Seawater Density (kg / L) from Temp (C) and Sal (PSU)
+    Chapter 5, Section 4.2 of Dickson, Sabine and Christian
+    (2007, http://cdiac.ornl.gov/oceans/Handbook_2007.html)
+    Parameters
+    ----------
+    TempC : array-like
+    Temperature in celcius.
+    Sal : array-like
+    Salinity in PSU
+    Returns
+    -------
+    Density in kg / L
+    """
+    # convert temperature to IPTS-68
+    T68 = (TempC + 0.0002) / 0.99975
+    pSMOW = (
+    999.842594
+    + 6.793952e-2 * T68
+    + -9.095290e-3 * T68 ** 2
+    + 1.001685e-4 * T68 ** 3
+    + -1.120083e-6 * T68 ** 4
+    + 6.536332e-9 * T68 ** 5
+    )
+    A = (
+    8.24493e-1
+    + -4.0899e-3 * T68
+    + 7.6438e-5 * T68 ** 2
+    + -8.2467e-7 * T68 ** 3
+    + 5.3875e-9 * T68 ** 4
+    )
+    B = -5.72466e-3 + 1.0227e-4 * T68 + -1.6546e-6 * T68 ** 2
+    C = 4.8314e-4
+    return (pSMOW + A * Sal + B * Sal ** 1.5 + C * Sal ** 2) / 1000
+
 #want to calculate the density based on the type of food that the krill is consuming
 #def calc_density(food):
     
 
-#Boundary curve using Wu et al 2024
-def bounday_curve(L): #units um!!
-    
-    if L >= 900:
-        MP_size_lim = -0.0002 * L **2 + 0.36 * L
-        
-    else:
-        MP_size_lim = 162 
-        
-    return MP_size_lim
 
 
-#def boudary_curve ()
+
+
     
 
     

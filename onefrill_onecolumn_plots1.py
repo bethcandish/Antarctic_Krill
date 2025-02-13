@@ -7,7 +7,8 @@ from onekrill_onecolumn import (
     calc_sinking_velocity,
     calc_fp_width_um,
     calc_length_decrease,
-    generate_random
+    generate_random,
+    swdens
 )
 import scipy.stats as stats
 
@@ -518,3 +519,79 @@ plt.show()
 print(f"Total pellets released: {len(fp_release_times)}")
 print(f"Pellets reaching 2000m with breakage: {pellets_reaching_2000m_break}")
 print(f"Pellets reaching 2000m without breakage: {pellets_reaching_2000m}")
+
+#%% importint the temp and saility data to get the density of sea water with depth
+
+import numpy as np
+import matplotlib.pyplot as plt
+from onekrill_onecolumn import (
+    calc_clearance_rate,
+    calc_krill_mp_consumption,
+    calc_mp_fp_production_rate,
+    calc_sinking_velocity,
+    calc_fp_width_um,
+    calc_length_decrease,
+    generate_random,
+    swdens
+)
+import netCDF4 as nc
+import pandas as pd
+
+temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
+sal_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-so_anfc_0.083deg_P1M-m_1739443856060.nc')
+
+print(sal_data.variables.keys())  # Check the variable names
+
+# Get the temperature variable (adjust the name if different in your file)
+temp = temp_data.variables['thetao'][:]  # This will return a numpy array
+
+# Get the depth dimension (adjust the name if necessary)
+depth_t = temp_data.variables['depth'][:]  # Depth values as a numpy array
+
+# Get the time dimension (if relevant)
+time_t = temp_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_t = temp_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_t = temp_data.variables['longitude'][:]  # Longitude values as a numpy array
+
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_temp = np.mean(temp, axis=(0, 2, 3))
+
+temp_avg = pd.DataFrame({
+    'Depth': depth_t,
+    'Average Temperature': avg_temp
+})
+#drop nan values 
+temp_avg = temp_avg.dropna()
+
+
+# Get the temperature variable (adjust the name if different in your file)
+sal = sal_data.variables['so'][:]  # This will return a numpy array
+
+# Get the depth dimension (adjust the name if necessary)
+depth_s = sal_data.variables['depth'][:]  # Depth values as a numpy array
+
+# Get the time dimension (if relevant)
+time_s = sal_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_s = sal_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_s = sal_data.variables['longitude'][:]  # Longitude values as a numpy array
+
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_sal = np.mean(sal, axis=(0, 2, 3))
+
+sal_avg = pd.DataFrame({
+    'Depth': depth_s,
+    'Average Salinity': avg_sal
+})
+#drop nan values 
+sal_avg = sal_avg.dropna()
+
+
+##merge the two data sets on the depth column 
+temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
+
+print(temp_sal_data)
+
