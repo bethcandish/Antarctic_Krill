@@ -11,6 +11,8 @@ from onekrill_onecolumn import (
     swdens
 )
 import scipy.stats as stats
+import netCDF4 as nc
+import pandas as pd
 
 # Parameters
 krill_length_mm = 50  # mm
@@ -22,6 +24,47 @@ mu = 0.001  # Viscosity of water
 rho = 1025  # Density of seawater 
 gut_passage_time = 2  # Gut passage time in hours
 mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
+
+##importing the temperature and salinity 
+temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
+sal_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-so_anfc_0.083deg_P1M-m_1739443856060.nc')
+# Get the temperature variable (adjust the name if different in your file)
+temp = temp_data.variables['thetao'][:]  # This will return a numpy array
+# Get the depth dimension (adjust the name if necessary)
+depth_t = temp_data.variables['depth'][:]  # Depth values as a numpy array
+# Get the time dimension (if relevant)
+time_t = temp_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_t = temp_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_t = temp_data.variables['longitude'][:]  # Longitude values as a numpy array
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_temp = np.mean(temp, axis=(0, 2, 3))
+temp_avg = pd.DataFrame({
+    'Depth': depth_t,
+    'Average Temperature': avg_temp})
+temp_avg = temp_avg.dropna()
+
+
+# Get the temperature variable (adjust the name if different in your file)
+sal = sal_data.variables['so'][:]  # This will return a numpy array
+# Get the depth dimension (adjust the name if necessary)
+depth_s = sal_data.variables['depth'][:]  # Depth values as a numpy array
+# Get the time dimension (if relevant)
+time_s = sal_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_s = sal_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_s = sal_data.variables['longitude'][:]  # Longitude values as a numpy array
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_sal = np.mean(sal, axis=(0, 2, 3))
+sal_avg = pd.DataFrame({
+    'Depth': depth_s,
+    'Average Salinity': avg_sal})
+sal_avg = sal_avg.dropna()
+
+
+##merge the two data sets on the depth column 
+temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
+temp_sal_data['Density'] = swdens(temp_sal_data['Average Temperature'], temp_sal_data['Average Salinity'])
 
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
@@ -61,13 +104,11 @@ for release_time in fp_release_times:
 
         # Update length based on depth
         L = calc_length_decrease(L_init, b, current_depth)
-        
-        # # Check if mass loss threshold is reached (cylinder mass formula)
-        # if L <= 0.6 * L_init:  
-        #     break  # Stop sinking if 40% of the mass is lost
+        nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
+        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density']
 
         # Recalculate sinking velocity with updated length
-        ws = calc_sinking_velocity(mu, rho, rho_s, L, D)
+        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
         ws_per_hour = ws / 24  # Convert m/day to m/hour
         
         # Update depth
@@ -384,8 +425,12 @@ from onekrill_onecolumn import (
     calc_sinking_velocity,
     calc_fp_width_um,
     calc_length_decrease,
-    generate_random
+    generate_random,
+    swdens
 )
+import netCDF4 as nc
+import pandas as pd
+
 
 # Parameters
 krill_length_mm = 50  # mm
@@ -397,6 +442,47 @@ rho = 1025  # Density of water
 gut_passage_time = 2  # Gut passage time in hours
 mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
 mp_conc = 500  # Microplastic concentration (particles/m³)
+
+##importing the temperature and salinity 
+temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
+sal_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-so_anfc_0.083deg_P1M-m_1739443856060.nc')
+# Get the temperature variable (adjust the name if different in your file)
+temp = temp_data.variables['thetao'][:]  # This will return a numpy array
+# Get the depth dimension (adjust the name if necessary)
+depth_t = temp_data.variables['depth'][:]  # Depth values as a numpy array
+# Get the time dimension (if relevant)
+time_t = temp_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_t = temp_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_t = temp_data.variables['longitude'][:]  # Longitude values as a numpy array
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_temp = np.mean(temp, axis=(0, 2, 3))
+temp_avg = pd.DataFrame({
+    'Depth': depth_t,
+    'Average Temperature': avg_temp})
+temp_avg = temp_avg.dropna()
+
+
+# Get the temperature variable (adjust the name if different in your file)
+sal = sal_data.variables['so'][:]  # This will return a numpy array
+# Get the depth dimension (adjust the name if necessary)
+depth_s = sal_data.variables['depth'][:]  # Depth values as a numpy array
+# Get the time dimension (if relevant)
+time_s = sal_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
+# Get the latitude and longitude (if available, adjust names if necessary)
+lat_s = sal_data.variables['latitude'][:]  # Latitude values as a numpy array
+lon_s = sal_data.variables['longitude'][:]  # Longitude values as a numpy array
+# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
+avg_sal = np.mean(sal, axis=(0, 2, 3))
+sal_avg = pd.DataFrame({
+    'Depth': depth_s,
+    'Average Salinity': avg_sal})
+sal_avg = sal_avg.dropna()
+
+
+##merge the two data sets on the depth column 
+temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
+temp_sal_data['Density'] = swdens(temp_sal_data['Average Temperature'], temp_sal_data['Average Salinity'])
 
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
@@ -417,58 +503,6 @@ pellets_reaching_2000m = 0
 def find_nearest_index(array, value):
     return (np.abs(array - value)).argmin()
 
-# Simulate sinking for each fecal pellet with breakage
-for release_time in fp_release_times:
-    pellet_time = time[time >= release_time]  # Time after release
-    time_since_release = pellet_time - release_time  # Time elapsed since egestion
-
-    # Generate unique properties for each fecal pellet
-    L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)  # Initial FP length (m)
-    D = generate_random(183, 178, 80, 600) * 10 ** (-6)  # Width/diameter of FP (m)
-    rho_s = generate_random(1121, 1116, 1038, 1391)  # Density of krill FP
-
-    # Compute initial sinking velocity
-    initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
-    
-    # Initialize values
-    current_depth = 100
-    L = L_init
-    ws = initial_sinking_velocity
-    dt = (time[1] - time[0])  # Time step in hours
-    reached_2000m = False
-    time_at_2000m = None
-    
-    for t in time_since_release:
-        if current_depth >= depth_limit:
-            reached_2000m = True
-            time_at_2000m = release_time + t
-            pellets_reaching_2000m_break += 1
-            break
-        
-        # Update length based on depth
-        L = calc_length_decrease(L_init, b, current_depth)
-        
-        # Stop sinking if 40% of mass is lost
-        if L <= 0.6 * L_init:
-            reached_2000m = False
-            break
-        
-        # Recalculate sinking velocity
-        ws = calc_sinking_velocity(mu, rho, rho_s, L, D)
-        ws_per_hour = ws / 24  # Convert m/day to m/hour
-
-        # Update depth
-        current_depth += ws_per_hour * dt
-    
-    if reached_2000m and time_at_2000m is not None:
-        contains_mp = np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2))
-        if contains_mp:
-            index = find_nearest_index(time, time_at_2000m)
-            mp_accumulation_at_2000m_break[index] += mp_conc
-
-# Convert to cumulative sum
-mp_accumulation_at_2000m_break = np.cumsum(mp_accumulation_at_2000m_break)
-
 # Simulate sinking for each fecal pellet without breakage
 for release_time in fp_release_times:
     pellet_time = time[time >= release_time]
@@ -478,7 +512,7 @@ for release_time in fp_release_times:
     D = generate_random(183, 178, 80, 600) * 10 ** (-6)
     rho_s = generate_random(1121, 1116, 1038, 1391)
 
-    initial_sinking_velocity = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
+    initial_sinking_velocity = calc_sinking_velocity(mu, temp_sal_data['Density'].iloc[0], rho_s, L_init, D)
     
     current_depth = 100
     ws = initial_sinking_velocity
@@ -493,7 +527,14 @@ for release_time in fp_release_times:
             pellets_reaching_2000m += 1
             break
         
-        ws = calc_sinking_velocity(mu, rho, rho_s, L_init, D)
+        # Update length based on depth
+        L = calc_length_decrease(L_init, b, current_depth)
+        
+        #calculate the density at the current depth
+        nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
+        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density']
+        
+        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
         ws_per_hour = ws / 24
         current_depth += ws_per_hour * dt
     
@@ -507,7 +548,6 @@ mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
 
 # Plot results
 fig, ax = plt.subplots(figsize=(20, 10))
-ax.plot(time, mp_accumulation_at_2000m_break, label="MP Concentration at 2000m with breakage", color='red')
 ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m without breakage", color='blue')
 ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Microplastics Accumulated at 600m (particles/m³)")
@@ -517,81 +557,8 @@ ax.legend()
 plt.show()
 
 print(f"Total pellets released: {len(fp_release_times)}")
-print(f"Pellets reaching 2000m with breakage: {pellets_reaching_2000m_break}")
-print(f"Pellets reaching 2000m without breakage: {pellets_reaching_2000m}")
-
-#%% importint the temp and saility data to get the density of sea water with depth
-
-import numpy as np
-import matplotlib.pyplot as plt
-from onekrill_onecolumn import (
-    calc_clearance_rate,
-    calc_krill_mp_consumption,
-    calc_mp_fp_production_rate,
-    calc_sinking_velocity,
-    calc_fp_width_um,
-    calc_length_decrease,
-    generate_random,
-    swdens
-)
-import netCDF4 as nc
-import pandas as pd
-
-temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
-sal_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-so_anfc_0.083deg_P1M-m_1739443856060.nc')
-
-print(sal_data.variables.keys())  # Check the variable names
-
-# Get the temperature variable (adjust the name if different in your file)
-temp = temp_data.variables['thetao'][:]  # This will return a numpy array
-
-# Get the depth dimension (adjust the name if necessary)
-depth_t = temp_data.variables['depth'][:]  # Depth values as a numpy array
-
-# Get the time dimension (if relevant)
-time_t = temp_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
-
-# Get the latitude and longitude (if available, adjust names if necessary)
-lat_t = temp_data.variables['latitude'][:]  # Latitude values as a numpy array
-lon_t = temp_data.variables['longitude'][:]  # Longitude values as a numpy array
-
-# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
-avg_temp = np.mean(temp, axis=(0, 2, 3))
-
-temp_avg = pd.DataFrame({
-    'Depth': depth_t,
-    'Average Temperature': avg_temp
-})
-#drop nan values 
-temp_avg = temp_avg.dropna()
+print(f"Pellets reaching 2000m: {pellets_reaching_2000m}")
 
 
-# Get the temperature variable (adjust the name if different in your file)
-sal = sal_data.variables['so'][:]  # This will return a numpy array
 
-# Get the depth dimension (adjust the name if necessary)
-depth_s = sal_data.variables['depth'][:]  # Depth values as a numpy array
-
-# Get the time dimension (if relevant)
-time_s = sal_data.variables['time'][:]  # Time values as a numpy array (months or days, etc.)
-
-# Get the latitude and longitude (if available, adjust names if necessary)
-lat_s = sal_data.variables['latitude'][:]  # Latitude values as a numpy array
-lon_s = sal_data.variables['longitude'][:]  # Longitude values as a numpy array
-
-# Average over time, latitude, and longitude dimensions (axis 0, 2, and 3)
-avg_sal = np.mean(sal, axis=(0, 2, 3))
-
-sal_avg = pd.DataFrame({
-    'Depth': depth_s,
-    'Average Salinity': avg_sal
-})
-#drop nan values 
-sal_avg = sal_avg.dropna()
-
-
-##merge the two data sets on the depth column 
-temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
-
-print(temp_sal_data)
 
