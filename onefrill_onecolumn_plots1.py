@@ -66,6 +66,7 @@ sal_avg = sal_avg.dropna()
 temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
 temp_sal_data['Density'] = swdens(temp_sal_data['Average Temperature'], temp_sal_data['Average Salinity'])
 
+
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
 krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
@@ -105,7 +106,7 @@ for release_time in fp_release_times:
         # Update length based on depth
         L = calc_length_decrease(L_init, b, current_depth)
         nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
-        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density']
+        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density'] *1000
 
         # Recalculate sinking velocity with updated length
         ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
@@ -532,7 +533,7 @@ for release_time in fp_release_times:
         
         #calculate the density at the current depth
         nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
-        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density']
+        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density'] * 1000
         
         ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
         ws_per_hour = ws / 24
@@ -559,6 +560,62 @@ plt.show()
 print(f"Total pellets released: {len(fp_release_times)}")
 print(f"Pellets reaching 2000m: {pellets_reaching_2000m}")
 
+#%% analysing the FP_length data 
+
+import pandas as pd 
+import matplotlib.pyplot as plt 
+import scipy.stats as stats
+import numpy as np
+
+FP_length = pd.read_csv('FP_length.csv')
+print(FP_length.columns)
+
+def truncated_normal_pdf(mean, min_val, max_val, num_points=1000):
+    """
+    Computes x-values and corresponding PDF values for a truncated normal distribution.
+
+    Parameters:
+        mean (float): Mean of the distribution.
+        min_val (float): Minimum possible value.
+        max_val (float): Maximum possible value.
+        num_points (int): Number of points for smooth curve.
+
+    Returns:
+        x (numpy array): Range of values from min_val to max_val.
+        pdf_y (numpy array): PDF values corresponding to x.
+    """
+    # Estimate standard deviation
+    std_dev = (max_val - min_val) / 6  # Rough estimate assuming normal-like distribution
+
+    # Define bounds in standard normal form
+    lower_bound = (min_val - mean) / std_dev
+    upper_bound = (max_val - mean) / std_dev
+
+    # Create truncated normal distribution
+    distribution = stats.truncnorm(lower_bound, upper_bound, loc=mean, scale=std_dev)
+
+    # Generate x values (range for PDF calculation)
+    x = np.linspace(min_val, max_val, num_points)
+
+    # Compute the probability density function (PDF)
+    pdf_y = distribution.pdf(x)
+
+    return x, pdf_y  # Return values for plotting
+
+x, pdf_y = truncated_normal_pdf(2.927, 0.517, 4.0, num_points=1000)
+pdf_y_scaled = pdf_y * 16 / max(pdf_y)  # Normalize PDF to histogram
+
+mean_length = FP_length['Length '].mean()
+
+plt.hist(FP_length['Length '], bins = 40, label='300m data')
+plt.plot(x, pdf_y_scaled, color='red', linewidth=2, label="Atkinson et al 2012 data")
+plt.axvline(x=mean_length, color='blue', linestyle='--', linewidth=2, label="Mean at 300m")
+plt.axvline(x=2.927, color='red', linestyle='--', linewidth=2, label="Mean at surface")
+plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+
+
+plt.show()
 
 
 
