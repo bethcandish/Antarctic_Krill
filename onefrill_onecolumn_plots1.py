@@ -560,7 +560,7 @@ for release_time in fp_release_times:
         delta_L = L_init - calc_length_decrease(L_init, b, current_depth)
         
             # Apply breakage if within top 300m
-        if 100 <= current_depth <= 300 and np.random.rand() < 0.2:
+        if 100 <= current_depth <= 300 and np.random.rand() < 0.9:
             broke = False  # Only break once per pellet
             L = (L_init-delta_L)/2
         else:
@@ -586,7 +586,7 @@ mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
 
 # Plot results
 fig, ax = plt.subplots(figsize=(20, 10))
-ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m without breakage", color='blue')
+ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m", color='blue')
 ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Microplastics Accumulated at 2000m (particles/m³)")
 #ax.set_title("Accumulation of Microplastics at 600m Over Time")
@@ -665,4 +665,38 @@ print(f"Ratio of values below 0.5 to above 0.5: {ratio}")
 #clearly a lot of them break but what should i use as the size at which they let go of their microplastics?
 #want 20% of the them to break randomly in half which then halves their length - impacts the sinking velocity
 
+#%% Analysing the microplastics data 
+import pandas as pd
+import numpy as np
+#importing the size and concentration data set and merge them on lat or long?
+dimension_data_PE = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_horizontal_dimensions_v17072020.xlsx", sheet_name="Particle dimensions-PE")
+dimension_data_PP = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_horizontal_dimensions_v17072020.xlsx", sheet_name="Particle dimensions-PP")
+dimension_data_PS = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_horizontal_dimensions_v17072020.xlsx", sheet_name="Particle dimensions-PS")
+conc_data = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_counts-v17072020.xlsx")
+
+columns_to_fill_dimension_PE = ['Cruise ', 'Sampling date [dd-mm-yyyy]', 'Sampling Time [hh:mm:ss]',
+       'Sampling position_Latitude [degrees_north]',
+       'Sampling position_Longitude [degrees_east]', 'Science event',
+       'SAPS deployment ID', 'Sampling Depth [m]']
+columns_to_fill_dimension_PP = ['Cruise ', 'Sampling date [dd-mm-yyyy]', 'Sampling Time [hh:mm:ss]',
+       'Sampling position_Latitude [degrees_north]',
+       'Sampling position_Longitude [degrees_east]', 'Science event',
+       'SAPS deployment ID', 'Sampling Depth [m]']
+columns_to_fill_dimension_PS = ['Cruise ', 'Sampling date [dd-mm-yyyy]', 'Sampling Time [hh:mm:ss]',
+       'Sampling position_Latitude [degrees_north]',
+       'Sampling position_Longitude [degrees_east]', 'Science event',
+       'SAPS deployment ID', 'Sampling Depth [m]']
+columns_to_fill_conc = ['Cruise', 'Sampling Date [dd/mm/yyyy]', 'Sampling Time [hh:mm:ss]',
+       'Latitude [degrees_north]', 'Longitude [degrees_east]', 'Science event',
+       'SAPS deployment ID', 'Sample ID ', 'Depth (m)', 'Volume sampled (L)']
+
+dimension_data_PE[columns_to_fill_dimension_PE] = dimension_data_PE[columns_to_fill_dimension_PE].fillna(method="ffill")
+dimension_data_PP[columns_to_fill_dimension_PP] = dimension_data_PP[columns_to_fill_dimension_PP].fillna(method="ffill")
+dimension_data_PS[columns_to_fill_dimension_PS] = dimension_data_PE[columns_to_fill_dimension_PS].fillna(method="ffill")
+conc_data[columns_to_fill_conc] = conc_data[columns_to_fill_conc].fillna(method="ffill")
+
+
+
+
+#filtering for just the two sites near south georgia and for data only in the mixed layer
 

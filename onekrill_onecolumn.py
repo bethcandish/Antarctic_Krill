@@ -50,6 +50,7 @@ def calc_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity a
     g= 9.81
 
     sinking_velocity_s = 0.079 * (1/mu)*(rho_s - rho) * g * L**2 *(L/D)**(-1.664)
+    
     #converting the sinking velocity to m/d 
     sinking_velocity = sinking_velocity_s * (60*60*24)
     
