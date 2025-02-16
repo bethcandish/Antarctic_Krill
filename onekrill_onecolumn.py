@@ -55,19 +55,7 @@ def calc_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity a
     
     return sinking_velocity
 
-# def calc_initial_sinking_velocity_at(L, D, rho_s): # Atkinson et al 2012
-        
-#     #[L] = um
-#     #[D] = um
-#     #[rho_s] = kg/m^3
-    
-#     log_sinking_velocity = 1.96 * np.log10(D) + 0.539 * np.log10(L) + 0.00405 * rho_s - 8.33
-    
-#     initial_sinking_velocity = 10 ** log_sinking_velocity #m/d
-    
-#     return initial_sinking_velocity
 
-#from atkinson et al 2012 but the R2 is 23??
 
 def calc_fp_width_um(krill_length_mm): 
     
@@ -147,6 +135,20 @@ def swdens(TempC, Sal):
 
 #want to calculate the density based on the type of food that the krill is consuming
 #def calc_density(food):
+    
+# def break_func(a):
+#     """
+
+
+#     Parameters
+#     ----------
+#     a : Proportion of FP that are below .5mm as a proxy for how many break.
+
+#     Returns
+#     -------
+#     None.
+
+#     """
     
 
 

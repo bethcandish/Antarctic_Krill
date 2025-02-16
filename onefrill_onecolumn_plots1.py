@@ -18,12 +18,11 @@ import pandas as pd
 krill_length_mm = 50  # mm
 mp_conc = 500  # particles/m3
 depth_limit = 2000  # m
-time = np.linspace(0, 200, 500)  # Simulation time in hours
+time = np.linspace(0, 200, 1000)  # Simulation time in hours
 b = -0.3  # Attenuation coefficient
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of seawater 
 gut_passage_time = 2  # Gut passage time in hours
-mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
 
 ##importing the temperature and salinity 
 temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
@@ -76,6 +75,8 @@ time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_pa
 fp_release_times = np.arange(0, max(time), gut_passage_time)
 mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_one_mp_fp)
 
+
+
 # Create figure
 fig, ax = plt.subplots(figsize=(12, 10))
 
@@ -98,23 +99,50 @@ for release_time in fp_release_times:
     ws = initial_sinking_velocity
     dt = (time[1] - time[0])  # Time step in hours
     sinking_depths = []
+    
+    # Store breakage points for visualization
+    breakage_points = []  # List to store (time, depth) of breakage events
+
+    # # Determine if this FP will break within the top 300m
+    # will_break = np.random.rand() < 0.2  # 20% probability
+    broke = False  # Track if breakage occurred
 
     for t in time_since_release:
         if current_depth >= depth_limit:
             break  # Stop tracking if pellet reaches the max depth
-
+            
         # Update length based on depth
-        L = calc_length_decrease(L_init, b, current_depth)
+        delta_L = L_init - calc_length_decrease(L_init, b, current_depth)
+
+        
+            # Apply breakage if within top 300m
+        if 110 <= current_depth <= 300 and np.random.rand() < 0.02 and not broke:
+            #print(f"Before break: Length = {L:.6f}, Sinking velocity = {ws:.6f}")
+            L = (L_init - delta_L) / 2  # Halve the length upon breakage
+            broke = True 
+            breakage_points.append((release_time + t, current_depth))
+            #ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)  # Recalculate ws
+            #print(f"After break: Length = {L:.6f}, Sinking velocity = {ws:.6f}")
+
+        else:
+            L = L_init - delta_L
+        
+        #update the water density
         nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
         rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density'] *1000
 
         # Recalculate sinking velocity with updated length
-        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
+        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D) 
         ws_per_hour = ws / 24  # Convert m/day to m/hour
         
         # Update depth
         current_depth += ws_per_hour * dt
         sinking_depths.append(current_depth)
+        
+        # Plot breakage points
+    if breakage_points:
+        break_times, break_depths = zip(*breakage_points)  # Extract times and depths
+        ax.scatter(break_times, break_depths, color='black', marker='x', label="Breakage Event", s=50)
 
     # Stop at max depth
     sinking_depths = np.clip(sinking_depths, 0, depth_limit)
@@ -129,13 +157,13 @@ for release_time in fp_release_times:
 ax.invert_yaxis()  # Invert y-axis to show depth increasing downward
 ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Depth (m)")
-ax.set_title(f"Sinking Fecal Pellets with Stopping Condition at 40% Mass Loss")
+#ax.set_title(f"Sinking Fecal Pellets with Stopping Condition at 40% Mass Loss")
 ax.grid()
 
 # Add legend
 ax.plot([], [], color='red', label='Contains Microplastics')
 ax.plot([], [], color='blue', label='No Microplastics')
-ax.legend()
+#ax.legend()
 
 # Show plot
 plt.show()
@@ -210,7 +238,7 @@ def accumulate_microplastics(mp_conc):
 
             # Recalculate sinking velocity with updated length
             ws = calc_sinking_velocity(mu, rho, rho_s, L, D)
-            ws_per_hour = ws / 24  # Convert m/day to m/hour
+            ws_per_hour = ws * 3600  # Convert m/day to m/hour
 
             # Update depth
             current_depth += ws_per_hour * dt
@@ -435,14 +463,14 @@ import pandas as pd
 
 # Parameters
 krill_length_mm = 50  # mm
-depth_limit = 600  # m
-time = np.linspace(0, 10000, 20000)  # Simulation time in hours
+depth_limit = 2000  # m
+time = np.linspace(0, 500, 20000)  # Simulation time in hours
 b = -0.3  # Attenuation coefficient
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
 gut_passage_time = 2  # Gut passage time in hours
 mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
-mp_conc = 500  # Microplastic concentration (particles/m³)
+mp_conc = 1000  # Microplastic concentration (particles/m³)
 
 ##importing the temperature and salinity 
 temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
@@ -495,10 +523,10 @@ fp_release_times = np.arange(0, max(time), gut_passage_time)
 mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_one_mp_fp)
 
 # Initialize arrays to store microplastic accumulation at max depth
-mp_accumulation_at_2000m_break = np.zeros_like(time)
 mp_accumulation_at_2000m = np.zeros_like(time)
-pellets_reaching_2000m_break = 0
 pellets_reaching_2000m = 0
+
+#print(temp_sal_data)
 
 # Track when MP reaches 2000m
 def find_nearest_index(array, value):
@@ -511,7 +539,7 @@ for release_time in fp_release_times:
 
     L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)
     D = generate_random(183, 178, 80, 600) * 10 ** (-6)
-    rho_s = generate_random(1121, 1116, 1038, 1391)
+    rho_s = generate_random(1121, 1116, 1038, 1391) # this needs to vary with food intake - it is not random
 
     initial_sinking_velocity = calc_sinking_velocity(mu, temp_sal_data['Density'].iloc[0], rho_s, L_init, D)
     
@@ -520,7 +548,7 @@ for release_time in fp_release_times:
     dt = (time[1] - time[0])
     reached_2000m = False
     time_at_2000m = None
-    
+        
     for t in time_since_release:
         if current_depth >= depth_limit:
             reached_2000m = True
@@ -529,11 +557,20 @@ for release_time in fp_release_times:
             break
         
         # Update length based on depth
-        L = calc_length_decrease(L_init, b, current_depth)
+        delta_L = L_init - calc_length_decrease(L_init, b, current_depth)
+        
+            # Apply breakage if within top 300m
+        if 100 <= current_depth <= 300 and np.random.rand() < 0.2:
+            broke = False  # Only break once per pellet
+            L = (L_init-delta_L)/2
+        else:
+            L = L_init - delta_L
+        
         
         #calculate the density at the current depth
         nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
         rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density'] * 1000
+
         
         ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
         ws_per_hour = ws / 24
@@ -551,14 +588,14 @@ mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
 fig, ax = plt.subplots(figsize=(20, 10))
 ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m without breakage", color='blue')
 ax.set_xlabel("Time (hours)")
-ax.set_ylabel("Microplastics Accumulated at 600m (particles/m³)")
-ax.set_title("Accumulation of Microplastics at 600m Over Time")
+ax.set_ylabel("Microplastics Accumulated at 2000m (particles/m³)")
+#ax.set_title("Accumulation of Microplastics at 600m Over Time")
 ax.grid()
 ax.legend()
 plt.show()
 
-print(f"Total pellets released: {len(fp_release_times)}")
-print(f"Pellets reaching 2000m: {pellets_reaching_2000m}")
+# print(f"Total pellets released: {len(fp_release_times)}")
+# print(f"Pellets reaching 2000m: {pellets_reaching_2000m}")
 
 #%% analysing the FP_length data 
 
@@ -568,7 +605,6 @@ import scipy.stats as stats
 import numpy as np
 
 FP_length = pd.read_csv('FP_length.csv')
-print(FP_length.columns)
 
 def truncated_normal_pdf(mean, min_val, max_val, num_points=1000):
     """
@@ -614,8 +650,19 @@ plt.axvline(x=2.927, color='red', linestyle='--', linewidth=2, label="Mean at su
 plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
 
 
-
 plt.show()
 
+#proportion of FP below 0.5mm 
+below_count = (FP_length['Length '] < 0.5).sum()
+above_count = (FP_length['Length ']  > 0.5).sum()
+
+# Calculate the ratio
+ratio = below_count / above_count if above_count > 0 else float('inf')
+
+# Print the result
+print(f"Ratio of values below 0.5 to above 0.5: {ratio}") 
+
+#clearly a lot of them break but what should i use as the size at which they let go of their microplastics?
+#want 20% of the them to break randomly in half which then halves their length - impacts the sinking velocity
 
 
