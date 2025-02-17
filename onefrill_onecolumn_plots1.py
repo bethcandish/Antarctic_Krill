@@ -455,7 +455,8 @@ from onekrill_onecolumn import (
     calc_fp_width_um,
     calc_length_decrease,
     generate_random,
-    swdens
+    swdens,
+    assign_mp_size
 )
 import netCDF4 as nc
 import pandas as pd
@@ -464,13 +465,14 @@ import pandas as pd
 # Parameters
 krill_length_mm = 50  # mm
 depth_limit = 2000  # m
-time = np.linspace(0, 500, 20000)  # Simulation time in hours
+time = np.linspace(0, 500, 1000)  # Simulation time in hours
 b = -0.3  # Attenuation coefficient
 mu = 0.001  # Viscosity of water
 rho = 1025  # Density of water
 gut_passage_time = 2  # Gut passage time in hours
 mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
 mp_conc = 1000  # Microplastic concentration (particles/m³)
+mp_size = assign_mp_size()
 
 ##importing the temperature and salinity 
 temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
@@ -540,7 +542,9 @@ for release_time in fp_release_times:
     L_init = generate_random(2927, 2667, 517, 34482) * 10 ** (-6)
     D = generate_random(183, 178, 80, 600) * 10 ** (-6)
     rho_s = generate_random(1121, 1116, 1038, 1391) # this needs to vary with food intake - it is not random
+    mp_size = assign_mp_size()
 
+    
     initial_sinking_velocity = calc_sinking_velocity(mu, temp_sal_data['Density'].iloc[0], rho_s, L_init, D)
     
     current_depth = 100
@@ -548,6 +552,11 @@ for release_time in fp_release_times:
     dt = (time[1] - time[0])
     reached_2000m = False
     time_at_2000m = None
+    broke = False
+    
+    #random depth between 100 and 300m for breakage 
+    break_depth = np.random.uniform(100, 300)  # Random depth where breakage occurs (within 100m-300m)
+    break_chance = np.random.rand() < 0.5
         
     for t in time_since_release:
         if current_depth >= depth_limit:
@@ -560,8 +569,8 @@ for release_time in fp_release_times:
         delta_L = L_init - calc_length_decrease(L_init, b, current_depth)
         
             # Apply breakage if within top 300m
-        if 100 <= current_depth <= 300 and np.random.rand() < 0.9:
-            broke = False  # Only break once per pellet
+        if current_depth>=break_depth and break_chance and not broke:
+            broke = True  # Only break once per pellet
             L = (L_init-delta_L)/2
         else:
             L = L_init - delta_L
@@ -577,7 +586,8 @@ for release_time in fp_release_times:
         current_depth += ws_per_hour * dt
     
     if reached_2000m and time_at_2000m is not None:
-        contains_mp = np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2))
+        contains_mp = (not broke and  # Ensure pellet didn't break
+        np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2)) and mp_size < 0.8*D )
         if contains_mp:
             index = find_nearest_index(time, time_at_2000m)
             mp_accumulation_at_2000m[index] += mp_conc
@@ -668,6 +678,10 @@ print(f"Ratio of values below 0.5 to above 0.5: {ratio}")
 #%% Analysing the microplastics data 
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
 #importing the size and concentration data set and merge them on lat or long?
 dimension_data_PE = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_horizontal_dimensions_v17072020.xlsx", sheet_name="Particle dimensions-PE")
 dimension_data_PP = pd.read_excel("C:/Users/elican27/Documents/Antarctic_krill/Model/BODC-JC16001_Plastic_horizontal_dimensions_v17072020.xlsx", sheet_name="Particle dimensions-PP")
@@ -695,8 +709,82 @@ dimension_data_PP[columns_to_fill_dimension_PP] = dimension_data_PP[columns_to_f
 dimension_data_PS[columns_to_fill_dimension_PS] = dimension_data_PE[columns_to_fill_dimension_PS].fillna(method="ffill")
 conc_data[columns_to_fill_conc] = conc_data[columns_to_fill_conc].fillna(method="ffill")
 
+conc_data['Depth (m)'] = conc_data['Depth (m)'].astype(int)
+
+conc_data_so = conc_data[(conc_data['Latitude [degrees_north]'] <-40) &(conc_data['Depth (m)'] == 10)]
+#print(conc_data_so.columns)
 
 
+#Working out the average microplastic concentration 
+conc_data_so['Total_MP'] = conc_data_so['Number of particles - Polyethylene (N)']  + conc_data_so['Number of particles - Polypropylene (N)'] + conc_data_so['Number of particles - Polystyrene (N)']
+conc_data_so['Conc (particles/m3)'] = (conc_data_so['Total_MP']/ conc_data_so['Volume analysed (L)']) * 1000
 
-#filtering for just the two sites near south georgia and for data only in the mixed layer
+#print(conc_data_so['Conc (particles/m3)'])
+
+avg_conc = conc_data_so['Conc (particles/m3)'].mean()
+
+#print(avg_conc)
+
+#size distribution for all of the different plastic types - do I just clump then together?
+
+dimension_data_PE['Sampling Depth [m]'] = dimension_data_PE['Sampling Depth [m]'].astype(int)
+dimension_data_PP['Sampling Depth [m]'] = dimension_data_PP['Sampling Depth [m]'].astype(int)
+dimension_data_PS['Sampling Depth [m]'] = dimension_data_PS['Sampling Depth [m]'].astype(int)
+
+dimension_data_PS['Sampling position_Latitude [degrees_north]'] = pd.to_numeric(
+    dimension_data_PS['Sampling position_Latitude [degrees_north]'], errors='coerce')
+dimension_data_PS['Sampling Depth [m]'] = pd.to_numeric(
+    dimension_data_PS['Sampling Depth [m]'], errors='coerce')
+
+dimension_data_PE_so = dimension_data_PE[(dimension_data_PE['Sampling position_Latitude [degrees_north]'] < -40) &(dimension_data_PE['Sampling Depth [m]'] == 10)]
+dimension_data_PP_so = dimension_data_PP[(dimension_data_PP['Sampling position_Latitude [degrees_north]'] < -40) &(dimension_data_PP['Sampling Depth [m]'] == 10)]
+#dimension_data_PS_so = dimension_data_PS[(dimension_data_PS['Sampling position_Latitude [degrees_north]'] < -40) &(dimension_data_PS['Sampling Depth [m]'] == 10)]
+#There is no PS data from around South Georgia!!!
+
+dimension_data_so = pd.concat([dimension_data_PE_so, dimension_data_PP_so], ignore_index=True)
+#print(dimension_data_so.columns)
+
+
+sns.kdeplot(data = dimension_data_so, x='Feret diameter [µm]',hue = 'Polymer' ,fill=True, common_norm=False, palette='coolwarm')
+##There is only one PP data point in the around South Georgia in the mixed layer 
+#Thats why the plot only looks like it has one polymer type 
+plt.show()
+
+print(dimension_data_so['Feret diameter [µm]'].min())
+
+#%%
+# frequnecy distribution from Nan's data
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Data
+feret_diameters = [
+    40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250, 260, 270,
+    280, 290, 300, 320, 340, 360, 380, 400, 450, 500
+]
+
+normalized_frequencies = np.array([
+    0.00243309, 0.00851582, 0.02433090, 0.04257908, 0.06690998,
+    0.09732360, 0.09489051, 0.09124088, 0.08515815, 0.07907543,
+    0.07055961, 0.03649635, 0.03892944, 0.04257908, 0.04501217,
+    0.04014599, 0.03406326, 0.03041363, 0.02433090, 0.01824818,
+    0.01216545, 0.00729927, 0.00486618, 0.00243309
+])
+
+# Normalize frequencies (just in case)
+normalized_frequencies /= normalized_frequencies.sum()
+
+# Plot
+plt.figure(figsize=(8, 5))
+sns.barplot(x=feret_diameters, y=normalized_frequencies, color='royalblue', edgecolor='black')
+
+# Labels and title
+plt.xlabel("Feret Diameter (µm)")
+plt.ylabel("Normalized Frequency")
+plt.title("Frequency Distribution of Feret Diameters")
+plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+
+plt.show()
 

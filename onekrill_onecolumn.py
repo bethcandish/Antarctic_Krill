@@ -151,6 +151,37 @@ def swdens(TempC, Sal):
 
 #     """
     
+def assign_mp_size():
+    """
+    Assigns a microplastic size based on predefined Feret diameters and their corresponding normalized frequencies.
+    
+    Returns:
+    float: A randomly selected microplastic size in m (m).
+    """
+    # Feret diameters in micrometers
+    feret_diameters = [
+    40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250, 260, 270,
+    280, 290, 300, 320, 340, 360, 380, 400, 450, 500
+    ]
+    
+    # Normalized frequencies corresponding to each Feret diameter
+    normalized_frequencies = [
+    0.00243309, 0.00851582, 0.02433090, 0.04257908, 0.06690998,
+    0.09732360, 0.09489051, 0.09124088, 0.08515815, 0.07907543,
+    0.07055961, 0.03649635, 0.03892944, 0.04257908, 0.04501217,
+    0.04014599, 0.03406326, 0.03041363, 0.02433090, 0.01824818,
+    0.01216545, 0.00729927, 0.00486618, 0.00243309
+    ]
+    
+    # Normalize frequencies to sum to 1
+    normalized_frequencies = np.array(normalized_frequencies)
+    normalized_frequencies /= normalized_frequencies.sum()
+    
+    # Randomly select a Feret diameter based on the distribution
+    mp_size_um = np.random.choice(feret_diameters, p=normalized_frequencies)
+    mp_size = mp_size_um * 10**(-6)
+    
+    return mp_size
 
 
 
