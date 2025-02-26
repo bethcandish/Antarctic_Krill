@@ -1,3 +1,5 @@
+##This does not have the most recent updates - breakage and MP size ones 16/2 and 17/2 updates from notion
+
 import numpy as np
 import matplotlib.pyplot as plt
 from onekrill_onecolumn import (
@@ -443,8 +445,7 @@ ax.legend()
 # Show plot
 plt.show()
 
-#%%
-
+#%% Creating the density data set and saving so it doesn't have to be done everytime 
 import numpy as np
 import matplotlib.pyplot as plt
 from onekrill_onecolumn import (
@@ -460,19 +461,6 @@ from onekrill_onecolumn import (
 )
 import netCDF4 as nc
 import pandas as pd
-
-
-# Parameters
-krill_length_mm = 50  # mm
-depth_limit = 2000  # m
-time = np.linspace(0, 500, 1000)  # Simulation time in hours
-b = -0.3  # Attenuation coefficient
-mu = 0.001  # Viscosity of water
-rho = 1025  # Density of water
-gut_passage_time = 2  # Gut passage time in hours
-mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
-mp_conc = 1000  # Microplastic concentration (particles/m³)
-mp_size = assign_mp_size()
 
 ##importing the temperature and salinity 
 temp_data = nc.Dataset('C:/Users/elican27/Documents/Antarctic_krill/Model/Ocean_data/cmems_mod_glo_phy-thetao_anfc_0.083deg_P1M-m_1739443916403.nc')
@@ -514,6 +502,46 @@ sal_avg = sal_avg.dropna()
 ##merge the two data sets on the depth column 
 temp_sal_data = pd.merge(temp_avg, sal_avg, how = 'inner')
 temp_sal_data['Density'] = swdens(temp_sal_data['Average Temperature'], temp_sal_data['Average Salinity'])
+rho_data = temp_sal_data
+
+# Save density dataset separately
+rho_data_path = 'C:/Users/elican27/Documents/Antarctic_krill/Model/rho_data.csv'
+rho_data.to_csv(rho_data_path, index=False)
+
+
+
+#%% MAIN MODEL ## accumulation of MP at depth 
+#flux units for a 1D model is mass/s
+
+import numpy as np
+import matplotlib.pyplot as plt
+from onekrill_onecolumn import (
+    calc_clearance_rate,
+    calc_krill_mp_consumption,
+    calc_mp_fp_production_rate,
+    calc_sinking_velocity,
+    calc_rising_velocity,
+    calc_fp_width_um,
+    calc_length_decrease,
+    generate_random,
+    swdens,
+    assign_mp_size
+)
+import netCDF4 as nc
+import pandas as pd
+
+
+# Parameters
+krill_length_mm = 50  # mm
+depth_limit = 2000  # m
+time = np.linspace(0, 500, 10000)  # Simulation time in hours
+b = -0.32  # Attenuation coefficient
+mu = 0.001  # Viscosity of water
+rho = 1025  # Density of water
+gut_passage_time = 2  # Gut passage time in hours
+mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
+mp_conc = 1909.65  # Microplastic concentration (particles/m³)
+rho_p = 960 #Density of microplastic kg/m3
 
 # Compute ingestion and egestion rates
 clearance_rate = calc_clearance_rate(krill_length_mm)
@@ -527,8 +555,11 @@ mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_
 # Initialize arrays to store microplastic accumulation at max depth
 mp_accumulation_at_2000m = np.zeros_like(time)
 pellets_reaching_2000m = 0
+mp_release_depths = []  # Store depths where microplastics are released
 
-#print(temp_sal_data)
+#get the density data 
+rho_data_path = 'C:/Users/elican27/Documents/Antarctic_krill/Model/rho_data.csv'
+rho_data = pd.read_csv(rho_data_path)
 
 # Track when MP reaches 2000m
 def find_nearest_index(array, value):
@@ -553,6 +584,7 @@ for release_time in fp_release_times:
     reached_2000m = False
     time_at_2000m = None
     broke = False
+    mp_released = False
     
     #random depth between 100 and 300m for breakage 
     break_depth = np.random.uniform(100, 300)  # Random depth where breakage occurs (within 100m-300m)
@@ -568,17 +600,22 @@ for release_time in fp_release_times:
         # Update length based on depth
         delta_L = L_init - calc_length_decrease(L_init, b, current_depth)
         
-            # Apply breakage if within top 300m
-        if current_depth>=break_depth and break_chance and not broke:
+        # Apply breakage if within top 300m
+        if current_depth>=break_depth and break_chance and not broke: 
             broke = True  # Only break once per pellet
             L = (L_init-delta_L)/2
+            if mp_size > 0.5*D:
+                mp_released = True
+                mp_release_depths.append(current_depth)  # Store depth of MP release
+            else:
+                mp_released = False
         else:
             L = L_init - delta_L
         
         
         #calculate the density at the current depth
-        nearest_depth_index = (temp_sal_data['Depth'] - current_depth).abs().idxmin()
-        rho_at_depth = temp_sal_data.loc[nearest_depth_index, 'Density'] * 1000
+        nearest_depth_index = (rho_data['Depth'] - current_depth).abs().idxmin()
+        rho_at_depth = rho_data.loc[nearest_depth_index, 'Density'] * 1000
 
         
         ws = calc_sinking_velocity(mu, rho_at_depth, rho_s, L, D)
@@ -586,8 +623,8 @@ for release_time in fp_release_times:
         current_depth += ws_per_hour * dt
     
     if reached_2000m and time_at_2000m is not None:
-        contains_mp = (not broke and  # Ensure pellet didn't break
-        np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2)) and mp_size < 0.8*D )
+        contains_mp = (not mp_released and  
+        np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2)) and mp_size < D )
         if contains_mp:
             index = find_nearest_index(time, time_at_2000m)
             mp_accumulation_at_2000m[index] += mp_conc
@@ -606,6 +643,282 @@ plt.show()
 
 # print(f"Total pellets released: {len(fp_release_times)}")
 # print(f"Pellets reaching 2000m: {pellets_reaching_2000m}")
+print(np.mean(mp_release_depths))
+
+#%% more efficient main code
+import numpy as np
+import matplotlib.pyplot as plt
+from onekrill_onecolumn import (
+    calc_clearance_rate,
+    calc_krill_mp_consumption,
+    calc_mp_fp_production_rate,
+    calc_sinking_velocity,
+    calc_rising_velocity,
+    calc_fp_width_um,
+    calc_length_decrease,
+    generate_random,
+    swdens,
+    assign_mp_size
+)
+import netCDF4 as nc
+import pandas as pd
+
+# Parameters
+krill_length_mm = 50  # mm
+depth_limit = 2000  # m
+time = np.linspace(0, 500, 10000)  # Simulation time in hours
+b = -0.32  # Attenuation coefficient
+mu = 0.001  # Viscosity of water
+rho = 1025  # Density of water
+gut_passage_time = 2  # Gut passage time in hours
+mass_loss_threshold = 0.4  # Stop sinking when 40% of mass is lost
+mp_conc = 1909.65  # Microplastic concentration (particles/m³)
+rho_p = 960  # Density of microplastic kg/m3
+
+# Compute ingestion and egestion rates
+clearance_rate = calc_clearance_rate(krill_length_mm)
+krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
+time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time)
+
+# Fecal pellet release times
+fp_release_times = np.arange(0, max(time), gut_passage_time)
+mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_one_mp_fp)
+
+# Initialize arrays to store microplastic accumulation at max depth
+mp_accumulation_at_2000m = np.zeros_like(time)
+pellets_reaching_2000m = 0
+mp_release_depths = []  # Store depths where microplastics are released
+
+# Get the density data
+rho_data_path = 'C:/Users/elican27/Documents/Antarctic_krill/Model/rho_data.csv'
+rho_data = pd.read_csv(rho_data_path)
+
+# Track when MP reaches 2000m
+def find_nearest_index(array, value):
+    return (np.abs(array - value)).argmin()
+
+# Precompute random values for L_init, D, rho_s, and mp_size
+num_pellets = len(fp_release_times)
+L_init = generate_random(2927, 2667, 517, 34482, size=num_pellets) * 1e-6
+D = generate_random(183, 178, 80, 600, size=num_pellets) * 1e-6
+rho_s = generate_random(1121, 1116, 1038, 1391, size=num_pellets)
+mp_size = assign_mp_size(size=num_pellets)
+
+# Precompute break depths and break chances
+break_depths = np.random.uniform(100, 300, size=num_pellets)
+break_chances = np.random.rand(num_pellets) < 0.5
+
+# Simulate sinking for each fecal pellet without breakage
+for i, release_time in enumerate(fp_release_times):
+    pellet_time = time[time >= release_time]
+    time_since_release = pellet_time - release_time
+
+    current_depth = 100
+    ws = calc_sinking_velocity(mu, rho_data['Density'].iloc[0], rho_s[i], L_init[i], D[i])
+    dt = (time[1] - time[0])
+    reached_2000m = False
+    time_at_2000m = None
+    broke = False
+    mp_released = False
+
+    for t in time_since_release:
+        if current_depth >= depth_limit:
+            reached_2000m = True
+            time_at_2000m = release_time + t
+            pellets_reaching_2000m += 1
+            break
+
+        # Update length based on depth
+        delta_L = L_init[i] - calc_length_decrease(L_init[i], b, current_depth)
+
+        # Apply breakage if within top 300m
+        if current_depth >= break_depths[i] and break_chances[i] and not broke:
+            broke = True  # Only break once per pellet
+            L = (L_init[i] - delta_L) / 2
+            if mp_size[i] > 0.5 * D[i]:
+                mp_released = True
+                mp_release_depths.append(current_depth)  # Store depth of MP release
+            else:
+                mp_released = False
+        else:
+            L = L_init[i] - delta_L
+
+        # Calculate the density at the current depth
+        nearest_depth_index = (rho_data['Depth'] - current_depth).abs().idxmin()
+        rho_at_depth = rho_data.loc[nearest_depth_index, 'Density'] * 1000
+
+        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s[i], L, D[i])
+        ws_per_hour = ws / 24
+        current_depth += ws_per_hour * dt
+
+    if reached_2000m and time_at_2000m is not None:
+        contains_mp = (not mp_released and
+                       np.any(np.isclose(release_time, mp_fp_release_times, atol=gut_passage_time / 2)) and mp_size[i] < D[i])
+        if contains_mp:
+            index = find_nearest_index(time, time_at_2000m)
+            mp_accumulation_at_2000m[index] += mp_conc
+
+mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
+
+# Plot results
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m", color='blue')
+ax.set_xlabel("Time (hours)")
+ax.set_ylabel("Microplastics Accumulated at 2000m (particles/m³)")
+ax.grid()
+ax.legend()
+plt.show()
+
+# print(np.mean(mp_release_depths))
+
+
+#%% MICROPLASTIC FLUX WITH DEPTH 
+
+import numpy as np
+import matplotlib.pyplot as plt
+from onekrill_onecolumn import (
+    calc_clearance_rate,
+    calc_krill_mp_consumption,
+    calc_mp_fp_production_rate,
+    calc_sinking_velocity,
+    calc_length_decrease,
+    generate_random,
+    assign_mp_size
+)
+import pandas as pd
+from scipy.interpolate import interp1d
+
+# Parameters (unchanged)
+krill_length_mm = 50
+depth_limit = 2000
+time = np.linspace(0, 500, 10000)
+b = -0.32
+mu = 0.001
+rho = 1025
+gut_passage_time = 2
+mass_loss_threshold = 0.4
+mp_conc = 1909.65
+rho_p = 960
+mp_release_depths = []
+mp_release_events = []
+
+# Compute ingestion/egestion rates (unchanged)
+clearance_rate = calc_clearance_rate(krill_length_mm)
+krill_mp_consumption = calc_krill_mp_consumption(clearance_rate, mp_conc)
+time_produce_one_mp_fp = calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time)
+
+# Fecal pellet release times (unchanged)
+fp_release_times = np.arange(0, max(time), gut_passage_time)
+mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_one_mp_fp)
+
+# Load density data and interpolate (unchanged)
+rho_data = pd.read_csv('C:/Users/elican27/Documents/Antarctic_krill/Model/rho_data.csv')
+rho_interp = interp1d(rho_data['Depth'], rho_data['Density'] * 1000, kind='linear', fill_value="extrapolate")
+
+# Precompute pellet properties (unchanged)
+num_pellets = len(fp_release_times)
+L_init = generate_random(2927, 2667, 517, 34482, size=num_pellets) * 1e-6
+D = generate_random(183, 178, 80, 600, size=num_pellets) * 1e-6
+rho_s = generate_random(1121, 1116, 1038, 1391, size=num_pellets)
+mp_size = assign_mp_size(size=num_pellets)
+break_depths = np.random.uniform(100, 300, size=num_pellets)
+break_chances = np.random.rand(num_pellets) < 0.5
+
+# Identify MP-containing pellets
+tolerance = gut_passage_time / 2
+is_mp_pellet = np.zeros(num_pellets, dtype=bool)
+
+
+for i in range(num_pellets):
+    # Check if release time matches MP pellet release times
+    time_match = np.any(np.isclose(fp_release_times[i], mp_fp_release_times, atol=tolerance))
+    # Check if MP size is smaller than pellet diameter
+    size_condition = (mp_size[i] < D[i])
+    is_mp_pellet[i] = time_match and size_condition
+
+# Initialize storage for depth-time data
+mp_depth_over_time = []
+
+# Simulate sinking for MP-containing pellets
+for i in np.where(is_mp_pellet)[0]:
+    release_time = fp_release_times[i]
+    pellet_time = time[time >= release_time]
+    time_since_release = pellet_time - release_time
+    
+    current_depth = 100
+    ws = calc_sinking_velocity(mu, rho_interp(current_depth), rho_s[i], L_init[i], D[i])
+    dt = time[1] - time[0]
+    broke = False
+    mp_released = False
+    
+    for t in time_since_release:
+        if current_depth >= depth_limit or mp_released:
+            break  # Stop if sunk or MP released
+        
+        # Update length based on depth
+        delta_L = L_init[i] - calc_length_decrease(L_init[i], b, current_depth)
+        
+        global_time = release_time + t
+        
+        # Apply breakage if within top 300m
+        if current_depth >= break_depths[i] and break_chances[i] and not broke:
+            broke = True
+            if mp_size[i] > 0.5 * D[i]:
+                mp_released = True  # MP released, stop tracking
+                global_time = release_time + t
+                mp_release_events.append((global_time, current_depth, mp_size[i]))
+                break
+        
+        # Calculate density and sinking velocity
+        rho_at_depth = rho_interp(current_depth)
+        L = L_init[i] - delta_L if not broke else (L_init[i] - delta_L) / 2
+        ws = calc_sinking_velocity(mu, rho_at_depth, rho_s[i], L, D[i])
+        ws_per_hour = ws / 24
+        current_depth += ws_per_hour * dt
+        
+        # Record depth and time
+    
+        mp_depth_over_time.append((global_time, current_depth))
+        
+
+mp_rising_trajectories = []
+
+for event in mp_release_events:
+    release_time, release_depth, size = event
+    velocity = calc_rising_velocity(size, rho_p, rho, mu)  # m/day
+    velocity_hour = velocity / 24  # Convert to m/hour
+    
+    # Get times after release
+    post_release_times = time[time >= release_time]
+    
+    for t in post_release_times:
+        elapsed_hours = t - release_time
+        new_depth = release_depth - velocity_hour * elapsed_hours
+        if new_depth <= 0:
+            new_depth = 0
+            break  # Stop tracking after surfacing
+        mp_rising_trajectories.append((t, new_depth))
+
+# Convert to DataFrame for analysis
+import pandas as pd
+df_fp = pd.DataFrame(mp_depth_over_time, columns=['Time (hours)', 'Depth (m)'])
+df_mp = pd.DataFrame(mp_release_events, columns=['Time (hours)', 'Depth (m)', 'Size (um)'])
+df_rising = pd.DataFrame(mp_rising_trajectories, columns=['Time (hours)', 'Depth (m)'])
+
+# Plot results
+plt.figure(figsize=(20, 10))
+plt.scatter(df_fp['Time (hours)'], df_fp['Depth (m)'], alpha=0.5, s=10, label='MP-Containing Pellets')
+plt.scatter(df_mp['Time (hours)'], df_mp['Depth (m)'], alpha=0.5, s=200, label='MP', marker = 'x')
+plt.scatter(df_rising['Time (hours)'], df_rising['Depth (m)'], 
+           alpha=0.5, s=10, color='green', label='Rising Microplastics')
+plt.gca().invert_yaxis()  # Depth increases downward
+plt.xlabel('Time (hours)')
+plt.ylabel('Depth (m)')
+plt.title('Depth of Microplastic-Containing Fecal Pellets Over Time')
+plt.grid()
+plt.legend()
+plt.show()
+
 
 #%% analysing the FP_length data 
 
@@ -651,10 +964,15 @@ def truncated_normal_pdf(mean, min_val, max_val, num_points=1000):
 x, pdf_y = truncated_normal_pdf(2.927, 0.517, 4.0, num_points=1000)
 pdf_y_scaled = pdf_y * 16 / max(pdf_y)  # Normalize PDF to histogram
 
+x_remin = calc_length_decrease(x, -0.32, 300)
+mean_remin = calc_length_decrease(2.927, -0.3, 300)
+
 mean_length = FP_length['Length '].mean()
 
 plt.hist(FP_length['Length '], bins = 40, label='300m data')
 plt.plot(x, pdf_y_scaled, color='red', linewidth=2, label="Atkinson et al 2012 data")
+plt.plot(x_remin, pdf_y_scaled, color = 'orange', linewidth=2, label= "Length after remineralisation")
+plt.axvline(x=mean_remin, color='orange', linestyle='--', linewidth=2, label = "Mean at 300m (remineralization)")
 plt.axvline(x=mean_length, color='blue', linestyle='--', linewidth=2, label="Mean at 300m")
 plt.axvline(x=2.927, color='red', linestyle='--', linewidth=2, label="Mean at surface")
 plt.legend(loc='upper left', bbox_to_anchor=(1, 1))

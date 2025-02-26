@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
     
-def calc_clearance_rate(krill_length_mm): #Atkinsons but not 2012 one 
+def calc_clearance_rate(krill_length_mm): #Atkinsons et al 2002 I think  
     
     a = 0.00036
     b = 3.277
@@ -56,6 +56,16 @@ def calc_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity a
     
     return sinking_velocity
 
+def calc_rising_velocity(D, rho_p, rho, mu ):
+    
+    g = 9.81
+    
+    w_s = ( D**2 * (rho - rho_p) * g ) / (18 * mu )
+    
+    #convert to m/day
+    w = w_s * (60*60*24)
+    
+    return w
 
 
 def calc_fp_width_um(krill_length_mm): 
@@ -151,37 +161,80 @@ def swdens(TempC, Sal):
 
 #     """
     
-def assign_mp_size():
+import numpy as np
+
+def assign_mp_size(size=1):
     """
-    Assigns a microplastic size based on predefined Feret diameters and their corresponding normalized frequencies.
+    Assigns microplastic sizes based on predefined Feret diameters and their corresponding normalized frequencies.
+    
+    Parameters:
+    size (int): The number of microplastic sizes to generate. Default is 1.
     
     Returns:
-    float: A randomly selected microplastic size in m (m).
+    numpy.ndarray: An array of randomly selected microplastic sizes in meters (m).
     """
     # Feret diameters in micrometers
     feret_diameters = [
-    40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250, 260, 270,
-    280, 290, 300, 320, 340, 360, 380, 400, 450, 500
+        40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250, 260, 270,
+        280, 290, 300, 320, 340, 360, 380, 400, 450, 500
     ]
     
     # Normalized frequencies corresponding to each Feret diameter
     normalized_frequencies = [
-    0.00243309, 0.00851582, 0.02433090, 0.04257908, 0.06690998,
-    0.09732360, 0.09489051, 0.09124088, 0.08515815, 0.07907543,
-    0.07055961, 0.03649635, 0.03892944, 0.04257908, 0.04501217,
-    0.04014599, 0.03406326, 0.03041363, 0.02433090, 0.01824818,
-    0.01216545, 0.00729927, 0.00486618, 0.00243309
+        0.00243309, 0.00851582, 0.02433090, 0.04257908, 0.06690998,
+        0.09732360, 0.09489051, 0.09124088, 0.08515815, 0.07907543,
+        0.07055961, 0.03649635, 0.03892944, 0.04257908, 0.04501217,
+        0.04014599, 0.03406326, 0.03041363, 0.02433090, 0.01824818,
+        0.01216545, 0.00729927, 0.00486618, 0.00243309
     ]
     
     # Normalize frequencies to sum to 1
     normalized_frequencies = np.array(normalized_frequencies)
     normalized_frequencies /= normalized_frequencies.sum()
     
-    # Randomly select a Feret diameter based on the distribution
-    mp_size_um = np.random.choice(feret_diameters, p=normalized_frequencies)
-    mp_size = mp_size_um * 10**(-6)
+    # Randomly select Feret diameters based on the distribution
+    mp_size_um = np.random.choice(feret_diameters, size=size, p=normalized_frequencies)
+    mp_size = mp_size_um * 10**(-6)  # Convert micrometers to meters
     
     return mp_size
+
+def calculate_fp_density(date):
+    """
+    Calculate the density of krill faecal pellets based on the date provided, which determines the season.
+    
+    Parameters:
+    date (datetime.date): The date for which the pellet density is to be calculated.
+
+    Returns:
+        float: Calculated density of the faecal pellets (kg/m^3).
+    """
+    # Seasonal diatom biomass ratios in decimal form
+    seasonal_diatom_ratios = {
+        'Spring': 0.90,  # 90% diatoms
+        'Summer': 0.16,  # 16% diatoms
+        'Autumn': 0.03   # 3% diatoms
+    }
+    
+    # Determine season based on date
+    month = date.month
+    if month in [9, 10, 11]:  # September, October, November
+        season = 'Spring'
+    elif month in [12, 1, 2]:  # December, January, February
+        season = 'Summer'
+    elif month in [3, 4, 5]:  # March, April, May
+        season = 'Autumn'
+    else:
+        return 1050  # Default density if not in specified seasons
+    
+    density_diatom = 1080  # kg/m^3
+    density_non_diatom = 1050  # kg/m^3
+    diatom_ratio = seasonal_diatom_ratios[season]
+    
+    # Calculate the density based on the ratio
+    fp_density = (diatom_ratio * density_diatom) + ((1 - diatom_ratio) * density_non_diatom)
+    return fp_density
+
+
 
 
 
