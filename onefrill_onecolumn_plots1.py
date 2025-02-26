@@ -687,7 +687,6 @@ mp_fp_release_times = np.arange(time_produce_one_mp_fp, max(time), time_produce_
 # Initialize arrays to store microplastic accumulation at max depth
 mp_accumulation_at_2000m = np.zeros_like(time)
 pellets_reaching_2000m = 0
-mp_release_depths = []  # Store depths where microplastics are released
 
 # Get the density data
 rho_data_path = 'C:/Users/elican27/Documents/Antarctic_krill/Model/rho_data.csv'
@@ -708,6 +707,9 @@ mp_size = assign_mp_size(size=num_pellets)
 break_depths = np.random.uniform(100, 300, size=num_pellets)
 break_chances = np.random.rand(num_pellets) < 0.5
 
+# Store rising microplastics' data
+rising_mp = []  # List to track (depth, release_time, rising velocity)
+
 # Simulate sinking for each fecal pellet without breakage
 for i, release_time in enumerate(fp_release_times):
     pellet_time = time[time >= release_time]
@@ -727,6 +729,10 @@ for i, release_time in enumerate(fp_release_times):
             time_at_2000m = release_time + t
             pellets_reaching_2000m += 1
             break
+        
+        # Calculate the density at the current depth
+        nearest_depth_index = (rho_data['Depth'] - current_depth).abs().idxmin()
+        rho_at_depth = rho_data.loc[nearest_depth_index, 'Density'] * 1000
 
         # Update length based on depth
         delta_L = L_init[i] - calc_length_decrease(L_init[i], b, current_depth)
@@ -737,15 +743,14 @@ for i, release_time in enumerate(fp_release_times):
             L = (L_init[i] - delta_L) / 2
             if mp_size[i] > 0.5 * D[i]:
                 mp_released = True
-                mp_release_depths.append(current_depth)  # Store depth of MP release
+                
+                # Calculate rising velocity
+                wr = calc_rising_velocity(mp_size[i], rho_p, rho_at_depth, mu) / 24  # Convert to m/hour
+                rising_mp.append((current_depth, release_time + t, wr))  # Store data# Store depth of MP release
             else:
                 mp_released = False
         else:
             L = L_init[i] - delta_L
-
-        # Calculate the density at the current depth
-        nearest_depth_index = (rho_data['Depth'] - current_depth).abs().idxmin()
-        rho_at_depth = rho_data.loc[nearest_depth_index, 'Density'] * 1000
 
         ws = calc_sinking_velocity(mu, rho_at_depth, rho_s[i], L, D[i])
         ws_per_hour = ws / 24
@@ -757,22 +762,74 @@ for i, release_time in enumerate(fp_release_times):
         if contains_mp:
             index = find_nearest_index(time, time_at_2000m)
             mp_accumulation_at_2000m[index] += mp_conc
+            
+            
+# Simulate rising microplastics
+mp_rising_accumulation = np.zeros_like(time)
+# Set of counted indices to avoid multiple counts
+counted_indices = set()
+
+for depth, release_time, wr in rising_mp:
+    pellet_time = time[time >= release_time]
+    time_since_release = pellet_time - release_time
+
+    # Track if the microplastic has already been counted
+    counted = False
+
+    for t in time_since_release:
+        # Stop tracking once the microplastic reaches the surface (depth <= 100)
+        if depth <= 100 and not counted:
+            # Find the nearest index when it reaches the surface
+            index = find_nearest_index(time, release_time + t)
+            # Only count once at the surface
+            if index not in counted_indices:
+                mp_rising_accumulation[index] += 1
+                counted_indices.add(index)
+                counted = True  # Mark as counted when it reaches the surface
+            break  # Stop further tracking for this microplastic
+        
+        depth -= wr * dt  # Move upwards
+
+
+mp_rising_accumulation = np.cumsum(mp_rising_accumulation)
+
 
 mp_accumulation_at_2000m = np.cumsum(mp_accumulation_at_2000m)
 
-# Plot results
-fig, ax = plt.subplots(figsize=(20, 10))
-ax.plot(time, mp_accumulation_at_2000m, label="MP Concentration at 2000m", color='blue')
-ax.set_xlabel("Time (hours)")
-ax.set_ylabel("Microplastics Accumulated at 2000m (particles/m³)")
-ax.grid()
-ax.legend()
+
+# Create figure with two subplots
+fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(12, 12), sharex=True)
+
+# Plot accumulation at 2000m
+axes[0].plot(time, mp_accumulation_at_2000m, color='blue', label="MP Accumulated at 2000m")
+axes[0].set_ylabel("MP Accumulation at 2000m (particles)", fontsize=16)  # Larger label
+axes[0].set_title("Microplastic Accumulation at 2000m", fontsize=20)  # Larger title
+axes[0].grid()
+axes[0].legend(fontsize=16)
+
+# Plot accumulation at the surface
+axes[1].plot(time, mp_rising_accumulation, color='red', label="MP Accumulated at Surface")
+axes[1].set_xlabel("Time (hours)", fontsize=16)  # Larger label
+axes[1].set_ylabel("MP Accumulation at Surface (particles)", fontsize=16)  # Larger label
+axes[1].set_title("Microplastic Accumulation at the Surface", fontsize=20)  # Larger title
+axes[1].grid()
+axes[1].legend(fontsize=16)
+
+# Increase font size of ticks 
+for ax in axes:
+    ax.tick_params(axis='both', which='major', labelsize=14)  # Larger tick labels
+    ax.tick_params(axis='both', which='minor', labelsize=12)  # Optional: minor ticks
+
+# Display the plots
+plt.tight_layout()
 plt.show()
 
+
+print(f"Avg sinking velocity: {np.mean(ws)} m/day, Avg rising velocity: {np.mean([w[2] for w in rising_mp])} m/hour")
 # print(np.mean(mp_release_depths))
 
 
-#%% MICROPLASTIC FLUX WITH DEPTH 
+#%% microplastics rising again
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -783,6 +840,7 @@ from onekrill_onecolumn import (
     calc_sinking_velocity,
     calc_length_decrease,
     generate_random,
+    calc_rising_velocity,
     assign_mp_size
 )
 import pandas as pd
@@ -918,6 +976,11 @@ plt.title('Depth of Microplastic-Containing Fecal Pellets Over Time')
 plt.grid()
 plt.legend()
 plt.show()
+
+#%% Trying to plot a martin type curve but for microplastics instead
+
+
+
 
 
 #%% analysing the FP_length data 

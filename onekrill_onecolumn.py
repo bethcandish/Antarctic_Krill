@@ -60,7 +60,8 @@ def calc_rising_velocity(D, rho_p, rho, mu ):
     
     g = 9.81
     
-    w_s = ( D**2 * (rho - rho_p) * g ) / (18 * mu )
+    
+    w_s = (( D**2 * (rho - rho_p) * g ) / (18 * mu )) * 0.1
     
     #convert to m/day
     w = w_s * (60*60*24)
