@@ -10,7 +10,8 @@ Created on Wed Jan 29 17:06:53 2025
 import numpy as np 
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-    
+import pandas as pd
+
 def calc_clearance_rate(krill_length_mm): #Atkinsons et al 2002 I think  
     
     a = 0.00036
@@ -198,6 +199,21 @@ def assign_mp_size(size=1):
     mp_size = mp_size_um * 10**(-6)  # Convert micrometers to meters
     
     return mp_size
+
+def assign_krill_length(size=1):
+
+    df = pd.read_csv('krill_length_clean.csv')
+
+    krill_length = df['length'].values
+
+    frequency = df['frequency'].values
+
+    noralized_frequency = frequency / frequency.sum()
+
+    krill_length_mm = np.random.choice(krill_length, size=size, p=noralized_frequency)
+
+    return krill_length_mm
+    
 
 def calculate_fp_density(date):
     """
