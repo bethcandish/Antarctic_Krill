@@ -146,24 +146,6 @@ def swdens(TempC, Sal):
     C = 4.8314e-4
     return (pSMOW + A * Sal + B * Sal ** 1.5 + C * Sal ** 2) / 1000
 
-#want to calculate the density based on the type of food that the krill is consuming
-#def calc_density(food):
-    
-# def break_func(a):
-#     """
-
-
-#     Parameters
-#     ----------
-#     a : Proportion of FP that are below .5mm as a proxy for how many break.
-
-#     Returns
-#     -------
-#     None.
-
-#     """
-    
-import numpy as np
 
 def assign_mp_size(size=1):
     """
