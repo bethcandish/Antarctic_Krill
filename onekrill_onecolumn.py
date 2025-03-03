@@ -212,7 +212,7 @@ def assign_krill_length(size=1):
 
     krill_length_mm = np.random.choice(krill_length, size=size, p=noralized_frequency)
 
-    return krill_length_mm
+    return krill_length_mm if size > 1 else krill_length_mm.item()
     
 
 def calculate_fp_density(date):
