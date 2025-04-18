@@ -42,7 +42,7 @@ def calc_mp_fp_production_rate(krill_mp_consumption, gut_passage_time):
     
     #mp_fp_production_rate = 1 / time_produce_one_mp_fp 
     
-    return time_produce_one_mp_fp #fp/hour
+    return time_produce_one_mp_fp #hour
 
 def calc_sinking_velocity(mu, rho, rho_s, L, D): #calculating sinking velcoity as in komar et al 1981
     
